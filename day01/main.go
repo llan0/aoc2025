@@ -14,6 +14,9 @@ const (
 	StartingDialPosition = 50
 )
 
+var ErrParseDirection = errors.New("Error Parsing Direction")
+var ErrParseClicks = errors.New("Error Parsing Clicks")
+
 func main() {
 	file, err := os.Open("day01/input.txt")
 	if err != nil {
@@ -39,13 +42,13 @@ func ParseLine(r io.Reader) (int, error) {
 		// parse rotation direction
 		direction, err := ParseDirection(scanner.Text())
 		if err != nil {
-			return 0, nil // this doesnt make sense?? catch error
+			return 0, ErrParseDirection
 		}
 
 		// parse the clicks
 		clicks, err := ParseClicks(scanner.Text())
 		if err != nil {
-			return 0, err
+			return 0, ErrParseClicks
 		}
 		// turn dial
 		numOfResets, updatedDialPosition := TurnDial(direction, clicks, currentDialPosition)
@@ -59,7 +62,7 @@ func ParseLine(r io.Reader) (int, error) {
 }
 func ParseDirection(line string) (string, error) {
 	if line[0] != 'L' && line[0] != 'R' {
-		return "", errors.New("Invalid direction prefix")
+		return "", ErrParseDirection
 	}
 	return string(line[0]), nil
 }
