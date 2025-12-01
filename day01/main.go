@@ -33,6 +33,8 @@ func main() {
 	fmt.Printf("Password: %d\n", count)
 }
 
+// ---------------------
+
 func ParseLine(r io.Reader) (int, error) {
 	scanner := bufio.NewScanner(r)
 	var count int
@@ -60,12 +62,14 @@ func ParseLine(r io.Reader) (int, error) {
 	}
 	return count, nil
 }
+
 func ParseDirection(line string) (string, error) {
 	if line[0] != 'L' && line[0] != 'R' {
 		return "", ErrParseDirection
 	}
 	return string(line[0]), nil
 }
+
 func ParseClicks(line string) (int, error) {
 	clicks, err := strconv.ParseInt(line[1:], 10, 64)
 	if err != nil {
@@ -78,13 +82,27 @@ func TurnDial(direction string, clicks, currentDialPosition int) (int, int) {
 	if clicks < 0 {
 		return 0, currentDialPosition
 	}
+
+	var updatedDialPosition int
+
 	switch direction {
 	case "R":
-		totalClicksFromZero := currentDialPosition + clicks
-		numOfResets := totalClicksFromZero / MaxDialCycleClicks
-		updatedDialPosition := totalClicksFromZero % MaxDialCycleClicks
-		return numOfResets, updatedDialPosition
+		//modulo arithmetic for Right turns
+		updatedDialPosition = (currentDialPosition + clicks) % MaxDialCycleClicks
+	case "L":
+		// cuz % operator could return negatives
+		//((a % n) + n) % n for a positive result bettween 0 - 99
+		val := currentDialPosition - clicks
+		updatedDialPosition = (val%MaxDialCycleClicks + MaxDialCycleClicks) % MaxDialCycleClicks
 	default:
-		return 0, 0
+		return 0, currentDialPosition
 	}
+
+	// only count resets if the dial stops EXACTLY on 0
+	numOfResets := 0
+	if updatedDialPosition == 0 {
+		numOfResets = 1
+	}
+
+	return numOfResets, updatedDialPosition
 }

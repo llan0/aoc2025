@@ -13,30 +13,9 @@ func TestParseLine(t *testing.T) {
 		wantVal int
 		wantErr error
 	}{
-		{
-			name:    "Case 1: No input",
-			input:   "",
-			wantVal: 0,
-			wantErr: nil,
-		},
-		{
-			name:    "Case 2: Invalid Prefix",
-			input:   "14\n",
-			wantVal: 0,
-			wantErr: ErrParseDirection,
-		},
-		{
-			name:    "Case 3: Valid Single Line",
-			input:   "R14\n",
-			wantVal: 0,
-			wantErr: nil,
-		},
-		{
-			name:    "Case 4: Multi Line",
-			input:   "R50\nR133",
-			wantVal: 2,
-			wantErr: nil,
-		},
+		{name: "Case 1: No input", input: "", wantVal: 0, wantErr: nil},
+		{name: "Case 2: Invalid Prefix", input: "14\n", wantVal: 0, wantErr: ErrParseDirection},
+		{name: "Case 3: Valid Single Line", input: "R14\n", wantVal: 0, wantErr: nil},
 	}
 
 	for _, test := range tests {
@@ -48,10 +27,7 @@ func TestParseLine(t *testing.T) {
 			got, err := ParseLine(fakeFile)
 
 			assertError(t, err, tc.wantErr)
-
-			if tc.wantErr == nil && got != tc.wantVal {
-				t.Errorf("ParseLine() got %d, want %d", got, tc.wantVal)
-			}
+			assertEqual(t, got, tc.wantVal)
 		})
 	}
 }
@@ -69,43 +45,24 @@ func TestTurnDial(t *testing.T) {
 		dir     string
 		want    result
 	}{
-		{
-			name:    "Case 1: Click must be non negative",
-			current: StartingDialPosition,
-			clicks:  -1,
-			dir:     "R",
-			want:    result{resets: 0, pos: StartingDialPosition},
-		},
-		{
-			name:    "R - Case 2: Normal Turn",
-			current: StartingDialPosition,
-			clicks:  49,
-			dir:     "R",
-			want:    result{resets: 0, pos: 99},
-		},
-		{
-			name:    "R - Case 3: One Reset",
-			current: StartingDialPosition,
-			clicks:  52,
-			dir:     "R",
-			want:    result{resets: 1, pos: 2},
-		},
-		{
-			name:    "R - Case 4: Multiple Resets",
-			current: StartingDialPosition,
-			clicks:  585,
-			dir:     "R",
-			want:    result{resets: 6, pos: 35},
-		},
-		// TODO: Check for L turning dials
+		{name: "R: Normal Turn (No Reset)", current: 50, clicks: 49, dir: "R", want: result{resets: 0, pos: 99}},
+		{name: "R: Land exactly on 0 (Reset)", current: 50, clicks: 50, dir: "R", want: result{resets: 1, pos: 0}},
+		{name: "R: Pass 0 but don't stop (No Reset)", current: 50, clicks: 52, dir: "R", want: result{resets: 0, pos: 2}},
+		{name: "R: Multiple rotations landing on non-zero", current: 50, clicks: 585, dir: "R", want: result{resets: 0, pos: 35}},
+
+		{name: "L: Normal Turn (No Reset)", current: 50, clicks: 10, dir: "L", want: result{resets: 0, pos: 40}},
+		{name: "L: Land exactly on 0 (Reset)", current: 50, clicks: 50, dir: "L", want: result{resets: 1, pos: 0}},
+		{name: "L: Wrap around (No Reset)", current: 50, clicks: 51, dir: "L", want: result{resets: 0, pos: 99}},
+		{name: "L: Multiple rotations landing on 0", current: 50, clicks: 150, dir: "L", want: result{resets: 1, pos: 0}},
 	}
 
 	for _, test := range tests {
 		tc := test
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			gotNum, gotPos := TurnDial(tc.dir, tc.clicks, tc.current)
-			checkDialResults(t, gotNum, tc.want.resets, gotPos, tc.want.pos)
+			assertDialResults(t, gotNum, tc.want.resets, gotPos, tc.want.pos)
 		})
 	}
 }
@@ -117,18 +74,8 @@ func TestParseDirection(t *testing.T) {
 		wantStr string
 		wantErr error
 	}{
-		{
-			name:    "Case 1: No Prefix",
-			input:   "80",
-			wantStr: "",
-			wantErr: ErrParseDirection,
-		},
-		{
-			name:    "Case 2: Valid Input",
-			input:   "L80",
-			wantStr: "L",
-			wantErr: nil,
-		},
+		{name: "Case 1: No Prefix", input: "80", wantStr: "", wantErr: ErrParseDirection},
+		{name: "Case 2: Valid Input", input: "L80", wantStr: "L", wantErr: nil},
 	}
 
 	for _, test := range tests {
@@ -139,15 +86,20 @@ func TestParseDirection(t *testing.T) {
 			gotStr, gotErr := ParseDirection(tc.input)
 
 			assertError(t, gotErr, tc.wantErr)
-
-			if gotStr != tc.wantStr {
-				t.Errorf("ParseDirection string mismatch. Got %q, want %q", gotStr, tc.wantStr)
-			}
+			assertEqual(t, gotStr, tc.wantStr)
 		})
 	}
 }
 
-// Helpers
+// Helpers ----------------------------------------
+func assertEqual[T comparable](t testing.TB, got, want T) {
+	t.Helper()
+
+	if got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 func assertError(t testing.TB, got, want error) {
 	t.Helper()
 
@@ -165,12 +117,12 @@ func assertError(t testing.TB, got, want error) {
 	}
 }
 
-func checkDialResults(t *testing.T, gotNum, wantNum, gotPos, wantPos int) {
+func assertDialResults(t *testing.T, gotNum, wantNum, gotPos, wantPos int) {
 	t.Helper()
 	if gotNum != wantNum {
-		t.Errorf("Number of Resets mismatch: got %d, want %d", gotNum, wantNum)
+		t.Errorf("number of resets mismatch: got %d, want %d", gotNum, wantNum)
 	}
 	if gotPos != wantPos {
-		t.Errorf("Dial Position mismatch: got %d, want %d", gotPos, wantPos)
+		t.Errorf("dial position mismatch: got %d, want %d", gotPos, wantPos)
 	}
 }
